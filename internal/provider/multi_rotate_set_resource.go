@@ -124,7 +124,7 @@ func (r *MultiRotateSet) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 
-	lr := time.Now()
+	lr := time.Now().Add(-rp * time.Duration(data.Number.ValueInt64()-1))
 
 	for i := int64(0); i < data.Number.ValueInt64(); i++ {
 		exp := lr.Add(time.Duration(data.Number.ValueInt64()) * rp)
