@@ -17,6 +17,7 @@ import (
 
 // Ensure provider defined types fully satisfy framework interfaces.
 var _ resource.Resource = &MultiRotateSet{}
+var _ resource.ResourceWithModifyPlan = &MultiRotateSet{}
 
 func NewMultiRotateSet() resource.Resource {
 	return &MultiRotateSet{}
@@ -34,6 +35,7 @@ type MultiRotateSetModel struct {
 	RotationSet     types.List   `tfsdk:"rotation_set"`
 	CurrentRotation types.Int64  `tfsdk:"current_rotation"`
 	LastRotate      types.String `tfsdk:"last_rotate"`
+	Timestamp       types.String `tfsdk:"timestamp"`
 }
 
 type MultiRotateSetItemModel struct {
@@ -103,6 +105,10 @@ It will create an output list with creation/expiration times as well as which on
 				MarkdownDescription: "Last rotation time",
 				Computed:            true,
 			},
+			"timestamp": schema.StringAttribute{
+				MarkdownDescription: "Current time",
+				Computed:            true,
+			},
 		},
 	}
 }
@@ -161,7 +167,24 @@ func (r *MultiRotateSet) Read(ctx context.Context, req resource.ReadRequest, res
 	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 
+	data.Timestamp = types.StringValue(time.Now().Format(time.RFC3339))
+
+	// Save updated data into Terraform state
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+}
+
+func (r *MultiRotateSet) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	var data MultiRotateSetModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+
 	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	now, err := time.Parse(time.RFC3339, data.Timestamp.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid Current Time", "Unable to parse current time: "+err.Error())
 		return
 	}
 
@@ -177,7 +200,7 @@ func (r *MultiRotateSet) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
-	for lr.Before(time.Now().Add(time.Duration(data.Number.ValueInt64()) * -rp)) {
+	for lr.Before(now.Add(time.Duration(data.Number.ValueInt64()) * -rp)) {
 		lr = lr.Add(rp)
 	}
 
@@ -193,10 +216,10 @@ func (r *MultiRotateSet) Read(ctx context.Context, req resource.ReadRequest, res
 			resp.Diagnostics.AddError("Invalid Expiration", "Unable to parse expiration")
 			return
 		}
-		if time.Now().After(exp) {
+		if now.After(exp) {
 			exp := lr.Add(time.Duration(data.Number.ValueInt64()) * rp)
 			lr = lr.Add(rp)
-			r.Creation = types.StringValue(time.Now().Format(time.RFC3339))
+			r.Creation = types.StringValue(now.Format(time.RFC3339))
 			r.Expiration = types.StringValue(exp.Format(time.RFC3339))
 			r.Version = types.StringValue(data.Version.ValueString())
 			rs[i] = r
@@ -223,14 +246,11 @@ func (r *MultiRotateSet) Read(ctx context.Context, req resource.ReadRequest, res
 
 	data.CurrentRotation = types.Int64Value(int64(furthestOut))
 
-	// Save updated data into Terraform state
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	resp.Diagnostics.Append(resp.Plan.Set(ctx, &data)...)
 }
 
 func (r *MultiRotateSet) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var data MultiRotateSetModel
-
-	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -247,11 +267,7 @@ func (r *MultiRotateSet) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 
-	data.RotationPeriod = planData.RotationPeriod
-	data.Number = planData.Number
-	data.Version = planData.Version
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &planData)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
