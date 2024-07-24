@@ -176,6 +176,10 @@ func (r *MultiRotateSet) Read(ctx context.Context, req resource.ReadRequest, res
 func (r *MultiRotateSet) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
 	var data MultiRotateSetModel
 
+	if req.Plan.Raw.IsNull() {
+		return
+	}
+
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 
 	if resp.Diagnostics.HasError() {
