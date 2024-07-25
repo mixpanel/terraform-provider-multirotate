@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -23,11 +22,11 @@ func NewMultiRotateSet() resource.Resource {
 	return &MultiRotateSet{}
 }
 
-// ExampleResource defines the resource implementation.
+// MultiRotateSet defines the resource implementation.
 type MultiRotateSet struct {
 }
 
-// ExampleResourceModel describes the resource data model.
+// MultiRotateSetModel describes the resource data model.
 type MultiRotateSetModel struct {
 	RotationPeriod  types.String `tfsdk:"rotation_period"`
 	Number          types.Int64  `tfsdk:"number"`
@@ -107,6 +106,7 @@ It will create an output list with creation/expiration times as well as which on
 			},
 			"timestamp": schema.StringAttribute{
 				MarkdownDescription: "Current time",
+				Optional:            true,
 				Computed:            true,
 			},
 		},
@@ -145,17 +145,13 @@ func (r *MultiRotateSet) Create(ctx context.Context, req resource.CreateRequest,
 	data.LastRotate = types.StringValue(lr.Format(time.RFC3339))
 
 	var d diag.Diagnostics
-	data.RotationSet, d = types.ListValueFrom(ctx, req.Config.Schema.GetAttributes()["rotation_set"].(schema.ListNestedAttribute).NestedObject.Type(), rs)
+	data.RotationSet, d = types.ListValueFrom(ctx, resp.State.Schema.GetAttributes()["rotation_set"].(schema.ListNestedAttribute).NestedObject.Type(), rs)
 	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	data.CurrentRotation = types.Int64Value(data.Number.ValueInt64() - 1)
-
-	// Write logs using the tflog package
-	// Documentation: https://terraform.io/plugin/log
-	tflog.Trace(ctx, "created a resource")
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -166,8 +162,6 @@ func (r *MultiRotateSet) Read(ctx context.Context, req resource.ReadRequest, res
 
 	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
-
-	data.Timestamp = types.StringValue(time.Now().Format(time.RFC3339))
 
 	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -186,6 +180,33 @@ func (r *MultiRotateSet) ModifyPlan(ctx context.Context, req resource.ModifyPlan
 		return
 	}
 
+	if data.Timestamp.IsUnknown() {
+		data.Timestamp = types.StringValue(time.Now().Format(time.RFC3339))
+	}
+
+	if req.State.Raw.IsNull() {
+		resp.Diagnostics.Append(resp.Plan.Set(ctx, &data)...)
+		return
+	}
+
+	var stateData MultiRotateSetModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &stateData)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if data.LastRotate.IsUnknown() {
+		data.LastRotate = stateData.LastRotate
+	}
+
+	if data.CurrentRotation.IsUnknown() {
+		data.CurrentRotation = stateData.CurrentRotation
+	}
+
+	if data.RotationSet.IsUnknown() {
+		data.RotationSet = stateData.RotationSet
+	}
+
 	now, err := time.Parse(time.RFC3339, data.Timestamp.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Invalid Current Time", "Unable to parse current time: "+err.Error())
@@ -194,13 +215,13 @@ func (r *MultiRotateSet) ModifyPlan(ctx context.Context, req resource.ModifyPlan
 
 	lr, err := time.Parse(time.RFC3339, data.LastRotate.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Invalid Last Rotate", "Unable to parse last rotate")
+		resp.Diagnostics.AddError("Invalid Last Rotate", "Unable to parse last rotate: "+err.Error())
 		return
 	}
 
 	rp, err := time.ParseDuration(data.RotationPeriod.ValueString())
 	if err != nil {
-		resp.Diagnostics.AddError("Invalid Rotation Period", "Unable to parse rotation period")
+		resp.Diagnostics.AddError("Invalid Rotation Period", "Unable to parse rotation period: "+err.Error())
 		return
 	}
 
@@ -217,7 +238,7 @@ func (r *MultiRotateSet) ModifyPlan(ctx context.Context, req resource.ModifyPlan
 	for i, r := range rs {
 		exp, err := time.Parse(time.RFC3339, r.Expiration.ValueString())
 		if err != nil {
-			resp.Diagnostics.AddError("Invalid Expiration", "Unable to parse expiration")
+			resp.Diagnostics.AddError("Invalid Expiration", "Unable to parse expiration: "+err.Error())
 			return
 		}
 		if now.After(exp) {
@@ -232,7 +253,7 @@ func (r *MultiRotateSet) ModifyPlan(ctx context.Context, req resource.ModifyPlan
 
 	data.LastRotate = types.StringValue(lr.Format(time.RFC3339))
 	var d diag.Diagnostics
-	data.RotationSet, d = types.ListValueFrom(ctx, req.State.Schema.GetAttributes()["rotation_set"].(schema.ListNestedAttribute).NestedObject.Type(), rs)
+	data.RotationSet, d = types.ListValueFrom(ctx, resp.Plan.Schema.GetAttributes()["rotation_set"].(schema.ListNestedAttribute).NestedObject.Type(), rs)
 	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
 		return
