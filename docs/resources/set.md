@@ -33,6 +33,7 @@ resource "multirotate_set" "token_rotation" {
 ### Optional
 
 - `number` (Number) Number of different values to rotate
+- `timestamp` (String) Current time
 - `version` (String) Version of new rotations
 
 ### Read-Only
@@ -40,7 +41,6 @@ resource "multirotate_set" "token_rotation" {
 - `current_rotation` (Number) Current rotation index
 - `last_rotate` (String) Last rotation time
 - `rotation_set` (Attributes List) List of rotation set info (see [below for nested schema](#nestedatt--rotation_set))
-- `timestamp` (String) Current time
 
 <a id="nestedatt--rotation_set"></a>
 ### Nested Schema for `rotation_set`
