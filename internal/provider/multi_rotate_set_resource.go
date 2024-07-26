@@ -130,7 +130,12 @@ func (r *MultiRotateSet) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 
-	lr := time.Now().Add(-rp * time.Duration(data.Number.ValueInt64()-1))
+	timestamp, err := time.Parse(time.RFC3339, data.Timestamp.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid Timestamp", "Unable to parse timestamp")
+		return
+	}
+	lr := timestamp.Add(-rp * time.Duration(data.Number.ValueInt64()-1))
 
 	for i := int64(0); i < data.Number.ValueInt64(); i++ {
 		exp := lr.Add(time.Duration(data.Number.ValueInt64()) * rp)
