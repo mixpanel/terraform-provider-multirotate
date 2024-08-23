@@ -130,10 +130,15 @@ func (r *MultiRotateSet) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 
-	timestamp, err := time.Parse(time.RFC3339, data.Timestamp.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError("Invalid Timestamp", "Unable to parse timestamp")
-		return
+	timestamp := time.Now()
+	if data.Timestamp.IsUnknown() || data.Timestamp.IsNull() {
+		data.Timestamp = types.StringValue(timestamp.Format(time.RFC3339))
+	} else {
+		timestamp, err = time.Parse(time.RFC3339, data.Timestamp.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError("Invalid Timestamp", "Unable to parse timestamp")
+			return
+		}
 	}
 	lr := timestamp.Add(-rp * time.Duration(data.Number.ValueInt64()-1))
 
@@ -185,13 +190,13 @@ func (r *MultiRotateSet) ModifyPlan(ctx context.Context, req resource.ModifyPlan
 		return
 	}
 
-	if data.Timestamp.IsUnknown() {
-		data.Timestamp = types.StringValue(time.Now().Format(time.RFC3339))
-	}
-
 	if req.State.Raw.IsNull() {
 		resp.Diagnostics.Append(resp.Plan.Set(ctx, &data)...)
 		return
+	}
+
+	if data.Timestamp.IsUnknown() || data.Timestamp.IsNull() {
+		data.Timestamp = types.StringValue(time.Now().Format(time.RFC3339))
 	}
 
 	var stateData MultiRotateSetModel
