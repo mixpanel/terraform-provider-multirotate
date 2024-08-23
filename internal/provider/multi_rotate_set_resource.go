@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"os"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -168,12 +167,6 @@ func (r *MultiRotateSet) Read(ctx context.Context, req resource.ReadRequest, res
 
 	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
-}
-
-func testlog(s string) {
-	buf, _ := os.ReadFile("/home/andrew_leap/terraform-provider-multirotate/test.log")
-	buf = append(buf, []byte(s)...)
-	os.WriteFile("/home/andrew_leap/terraform-provider-multirotate/test.log", buf, 0644)
 }
 
 func (r *MultiRotateSet) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
