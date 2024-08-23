@@ -1,11 +1,13 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 )
 
 func TestAccMultirotateSet(t *testing.T) {
@@ -44,6 +46,40 @@ func TestAccMultirotateSet(t *testing.T) {
 	})
 }
 
+func TestAccMultirotateSetPlan(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Create and Read testing
+			{
+				Config: `
+resource "multirotate_set" "test" {
+rotation_period = "1h"
+}
+`,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						delayCheck{2 * time.Second},
+					},
+				},
+			},
+			{
+				Config: `
+resource "multirotate_set" "test" {
+rotation_period = "1h"
+}
+`,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						delayCheck{2 * time.Second},
+					},
+				},
+			},
+		},
+	})
+}
+
 func testAccMultirotateSetResourceConfig(t time.Time) string {
 	return fmt.Sprintf(`
 resource "multirotate_set" "test" {
@@ -51,4 +87,12 @@ resource "multirotate_set" "test" {
   timestamp = %q
 }
 `, t.Format(time.RFC3339))
+}
+
+type delayCheck struct {
+	Delay time.Duration
+}
+
+func (d delayCheck) CheckPlan(ctx context.Context, req plancheck.CheckPlanRequest, resp *plancheck.CheckPlanResponse) {
+	time.Sleep(d.Delay)
 }

@@ -19,7 +19,7 @@ It will create an output list with creation/expiration times as well as which on
 ```terraform
 resource "multirotate_set" "token_rotation" {
   rotation_period = "24h"
-  number          = "2"
+  number          = 2
 }
 ```
 
