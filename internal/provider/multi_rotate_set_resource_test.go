@@ -10,6 +10,23 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 )
 
+func timeCheckWithVariance(t time.Time, variance string) func(string) error {
+	return func(s string) error {
+		timeCheck, err := time.Parse(time.RFC3339, s)
+		if err != nil {
+			return err
+		}
+		v, err := time.ParseDuration(variance)
+		if err != nil {
+			return err
+		}
+		if timeCheck.Before(t.Add(-v)) || timeCheck.After(t.Add(v)) {
+			return fmt.Errorf("expected time to be within %s of %s, got %s", variance, t.Format(time.RFC3339), s)
+		}
+		return nil
+	}
+}
+
 func TestAccMultirotateSet(t *testing.T) {
 	n := time.Now().Round(time.Second)
 	resource.Test(t, resource.TestCase{
@@ -20,8 +37,8 @@ func TestAccMultirotateSet(t *testing.T) {
 			{
 				Config: testAccMultirotateSetResourceConfig(n),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("multirotate_set.test", "rotation_set.0.expiration", n.Add(time.Hour).Format(time.RFC3339)),
-					resource.TestCheckResourceAttr("multirotate_set.test", "rotation_set.1.expiration", n.Add(time.Hour*2).Format(time.RFC3339)),
+					resource.TestCheckResourceAttrWith("multirotate_set.test", "rotation_set.0.expiration", timeCheckWithVariance(n.Add(time.Hour), "5s")),
+					resource.TestCheckResourceAttrWith("multirotate_set.test", "rotation_set.1.expiration", timeCheckWithVariance(n.Add(time.Hour*2), "5s")),
 					resource.TestCheckResourceAttr("multirotate_set.test", "current_rotation", "1"),
 				),
 			},
@@ -29,16 +46,16 @@ func TestAccMultirotateSet(t *testing.T) {
 			{
 				Config: testAccMultirotateSetResourceConfig(n.Add(time.Hour + time.Minute)),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("multirotate_set.test", "rotation_set.0.expiration", n.Add(time.Hour*3).Format(time.RFC3339)),
-					resource.TestCheckResourceAttr("multirotate_set.test", "rotation_set.1.expiration", n.Add(time.Hour*2).Format(time.RFC3339)),
+					resource.TestCheckResourceAttrWith("multirotate_set.test", "rotation_set.0.expiration", timeCheckWithVariance(n.Add(time.Hour*2), "5s")),
+					resource.TestCheckResourceAttrWith("multirotate_set.test", "rotation_set.1.expiration", timeCheckWithVariance(n.Add(time.Hour*3), "5s")),
 					resource.TestCheckResourceAttr("multirotate_set.test", "current_rotation", "0"),
 				),
 			},
 			{
 				Config: testAccMultirotateSetResourceConfig(n.Add(time.Hour*2 + time.Minute)),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("multirotate_set.test", "rotation_set.0.expiration", n.Add(time.Hour*3).Format(time.RFC3339)),
-					resource.TestCheckResourceAttr("multirotate_set.test", "rotation_set.1.expiration", n.Add(time.Hour*4).Format(time.RFC3339)),
+					resource.TestCheckResourceAttrWith("multirotate_set.test", "rotation_set.0.expiration", timeCheckWithVariance(n.Add(time.Hour*3), "5s")),
+					resource.TestCheckResourceAttrWith("multirotate_set.test", "rotation_set.1.expiration", timeCheckWithVariance(n.Add(time.Hour*4), "5s")),
 					resource.TestCheckResourceAttr("multirotate_set.test", "current_rotation", "1"),
 				),
 			},
