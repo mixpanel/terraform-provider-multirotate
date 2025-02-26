@@ -46,8 +46,8 @@ func TestAccMultirotateSet(t *testing.T) {
 			{
 				Config: testAccMultirotateSetResourceConfig(n.Add(time.Hour + time.Minute)),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttrWith("multirotate_set.test", "rotation_set.0.expiration", timeCheckWithVariance(n.Add(time.Hour*2), "5s")),
-					resource.TestCheckResourceAttrWith("multirotate_set.test", "rotation_set.1.expiration", timeCheckWithVariance(n.Add(time.Hour*3), "5s")),
+					resource.TestCheckResourceAttrWith("multirotate_set.test", "rotation_set.0.expiration", timeCheckWithVariance(n.Add(time.Hour*3), "5s")),
+					resource.TestCheckResourceAttrWith("multirotate_set.test", "rotation_set.1.expiration", timeCheckWithVariance(n.Add(time.Hour*2), "5s")),
 					resource.TestCheckResourceAttr("multirotate_set.test", "current_rotation", "0"),
 				),
 			},
