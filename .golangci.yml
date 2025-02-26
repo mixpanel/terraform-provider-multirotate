@@ -21,6 +21,5 @@ linters:
     - staticcheck
     - usetesting
     - unconvert
-    - unparam
     - unused
     - govet
