@@ -11,7 +11,7 @@ import (
 )
 
 func TestAccMultirotateSet(t *testing.T) {
-	n := time.Now()
+	n := time.Now().Round(time.Second)
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -85,7 +85,7 @@ func testAccMultirotateSetResourceConfig(t time.Time) string {
 provider "multirotate" {
   timestamp = %q
 }
-  
+
 resource "multirotate_set" "test" {
   rotation_period = "1h"
 }
