@@ -82,9 +82,12 @@ rotation_period = "1h"
 
 func testAccMultirotateSetResourceConfig(t time.Time) string {
 	return fmt.Sprintf(`
+provider "multirotate" {
+  timestamp = %q
+}
+  
 resource "multirotate_set" "test" {
   rotation_period = "1h"
-  timestamp = %q
 }
 `, t.Format(time.RFC3339))
 }

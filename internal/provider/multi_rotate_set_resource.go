@@ -17,6 +17,7 @@ import (
 // Ensure provider defined types fully satisfy framework interfaces.
 var _ resource.Resource = &MultiRotateSet{}
 var _ resource.ResourceWithModifyPlan = &MultiRotateSet{}
+var _ resource.ResourceWithConfigure = &MultiRotateSet{}
 
 func NewMultiRotateSet() resource.Resource {
 	return &MultiRotateSet{}
@@ -24,6 +25,7 @@ func NewMultiRotateSet() resource.Resource {
 
 // MultiRotateSet defines the resource implementation.
 type MultiRotateSet struct {
+	Timestamp time.Time
 }
 
 // MultiRotateSetModel describes the resource data model.
@@ -173,6 +175,8 @@ func (r *MultiRotateSet) Read(ctx context.Context, req resource.ReadRequest, res
 	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 
+	data.Timestamp = types.StringValue(r.Timestamp.Format(time.RFC3339))
+
 	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -317,4 +321,12 @@ func (r *MultiRotateSet) Delete(ctx context.Context, req resource.DeleteRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
+}
+
+func (r *MultiRotateSet) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	r.Timestamp = req.ProviderData.(time.Time)
 }
