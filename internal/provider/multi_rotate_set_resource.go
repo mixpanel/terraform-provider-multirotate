@@ -157,7 +157,12 @@ func (r *MultiRotateSet) Create(ctx context.Context, req resource.CreateRequest,
 	data.LastRotate = types.StringValue(lr.Format(time.RFC3339))
 
 	var d diag.Diagnostics
-	data.RotationSet, d = types.ListValueFrom(ctx, resp.State.Schema.GetAttributes()["rotation_set"].(schema.ListNestedAttribute).NestedObject.Type(), rs)
+	rotationSet, ok := resp.State.Schema.GetAttributes()["rotation_set"].(schema.ListNestedAttribute)
+	if !ok {
+		resp.Diagnostics.AddError("Invalid Rotation Set", "Unable to get rotation set from schema")
+		return
+	}
+	data.RotationSet, d = types.ListValueFrom(ctx, rotationSet.NestedObject.Type(), rs)
 	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -267,7 +272,12 @@ func (r *MultiRotateSet) ModifyPlan(ctx context.Context, req resource.ModifyPlan
 
 	data.LastRotate = types.StringValue(lr.Format(time.RFC3339))
 	var d diag.Diagnostics
-	data.RotationSet, d = types.ListValueFrom(ctx, resp.Plan.Schema.GetAttributes()["rotation_set"].(schema.ListNestedAttribute).NestedObject.Type(), rs)
+	rotationSet, ok := resp.Plan.Schema.GetAttributes()["rotation_set"].(schema.ListNestedAttribute)
+	if !ok {
+		resp.Diagnostics.AddError("Invalid Rotation Set", "Unable to get rotation set from schema")
+		return
+	}
+	data.RotationSet, d = types.ListValueFrom(ctx, rotationSet.NestedObject.Type(), rs)
 	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -328,5 +338,10 @@ func (r *MultiRotateSet) Configure(ctx context.Context, req resource.ConfigureRe
 		return
 	}
 
-	r.Timestamp = req.ProviderData.(time.Time)
+	var ok bool
+	r.Timestamp, ok = req.ProviderData.(time.Time)
+	if !ok {
+		resp.Diagnostics.AddError("Invalid Provider Data", "Unable to convert provider data to time.Time")
+		return
+	}
 }
