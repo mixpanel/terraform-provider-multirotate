@@ -2,12 +2,14 @@ package provider
 
 import (
 	"context"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/function"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // Ensure ScaffoldingProvider satisfies various provider interfaces.
@@ -24,6 +26,7 @@ type MultiRotateProvider struct {
 
 // MultiRotateProviderModel describes the provider data model.
 type MultiRotateProviderModel struct {
+	Timestamp types.String `tfsdk:"timestamp"`
 }
 
 func (p *MultiRotateProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -36,6 +39,12 @@ func (p *MultiRotateProvider) Schema(ctx context.Context, req provider.SchemaReq
 		MarkdownDescription: `
 Multi Rotate Provider is a provider that allows you to easily rotate multiple instances of an object on a regular basis.
 `,
+		Attributes: map[string]schema.Attribute{
+			"timestamp": schema.StringAttribute{
+				MarkdownDescription: "The current timestamp.  Only useful for testing.",
+				Optional:            true,
+			},
+		},
 	}
 }
 
@@ -43,6 +52,19 @@ func (p *MultiRotateProvider) Configure(ctx context.Context, req provider.Config
 	var data MultiRotateProviderModel
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+
+	if !data.Timestamp.IsNull() {
+		var err error
+		resp.ResourceData, err = time.Parse(time.RFC3339, data.Timestamp.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Invalid Timestamp",
+				"Unable to parse timestamp: "+err.Error(),
+			)
+		}
+	} else {
+		resp.ResourceData = time.Now()
+	}
 
 	if resp.Diagnostics.HasError() {
 		return
